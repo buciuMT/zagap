@@ -1,0 +1,29 @@
+all = { import* ~ other }
+
+WHITESPACE = _{ (" " | "\n" | "\t")+ }
+
+COMMENT = _{
+    "//" ~ (!"\n" ~ ANY)
+  | "/*" ~ (!"*/" ~ ANY)
+}
+
+identifier = @{
+    !reserved_keywords ~ (LETTER | "_") ~ (LETTER | ASCII_DIGIT | "_")*
+  | reserved_keywords ~ (LETTER | ASCII_DIGIT | "_")+
+}
+
+other = { ANY* }
+
+reserved_keywords = {
+    "import"
+  | "if"
+  | "for"
+  | "break"
+  | "func"
+  | "struct"
+  | "size_of"
+  | "ret"
+  | "cti"
+  | "brk"
+}
+import            = { "import" ~ identifier }

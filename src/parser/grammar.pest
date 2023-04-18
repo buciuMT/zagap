@@ -1,0 +1,175 @@
+WHITESPACE = _{ (" " | "\n" | "\t")+ }
+
+COMMENT = _{
+    "//" ~ (!"\n" ~ ANY)
+  | "/*" ~ (!"*/" ~ ANY)
+}
+
+program = {
+    (import*) ~ (struct_def | function_def | function_import)*
+}
+
+import = { "import" ~ identifier }
+
+int_number = @{
+    ASCII_DIGIT ~ (ASCII_DIGIT | "_")*
+}
+
+float_number = @{
+    int_number ~ "." ~ int_number
+  | int_number ~ "."
+  | "." ~ int_number
+}
+
+number_literal = {
+    "-"* ~ (int_number | float_number)
+}
+
+char_literal = {
+    "'" ~ ANY ~ "'"
+}
+
+string_literal = {
+    ("\"" ~ ("\\\"" | !("\"") ~ ANY)* ~ "\"")+
+}
+
+literals = { char_literal | string_literal | number_literal }
+
+type = {
+    identifier
+  | ptr_type
+  | array_type
+}
+
+ptr_type   = { "*" ~ type }
+array_type = { "[" ~ type ~ ";" ~ int_number ~ "]" }
+array_def  = { "[" ~ type ~ ";" ~ rval_expr ~ "]" }
+
+exportk = { "export" }
+
+arg = { identifier ~ ":" ~ type ~ "," }
+
+struct_def = { exportk? ~ "struct" ~ identifier ~ ("as" ~ identifier)? ~ "{" ~ arg* ~ "}" }
+
+function_def = { exportk? ~ "func" ~ identifier ~ ":" ~ arg* ~ "->" ~ type ~ code_block }
+
+function_import = { "import" ~ "func" ~ identifier ~ ":" ~ (identifier ~ ":" ~ type)* ~ "->" ~ type ~ "as" ~ identifier }
+
+code_block = { "{" ~ statement* ~ "}" }
+
+statement = {
+    "ret" ~ rval_expr ~ ";"
+  | "cti" ~ ";"
+  | "brk" ~ ";"
+  | if_block
+  | for_block
+  | (assigment | declarationinit | declaration | rval_expr) ~ ";"
+}
+
+declaration     = { identifier ~ ":" ~ (array_def | type) }
+declarationinit = { declaration ~ "=" ~ rval_expr }
+assigment       = { lval_expr ~ "=" ~ rval_expr }
+
+if_block = { "if" ~ rval_expr ~ code_block ~ ("else" ~ (code_block | if_block))? }
+
+for_block = { for_while | for_c }
+
+for_while = {
+    "for" ~ rval_expr ~ code_block
+}
+
+for_c = { "for" ~ statement ~ statement ~ statement ~ code_block }
+
+prefix = {
+    minus
+  | lnot
+  | bnot
+}
+
+lnot = { "!" }
+bnot = { "~" }
+
+infix = {
+    plus
+  | minus
+  | asterix
+  | div
+  | modulo
+  | logical
+  | binary
+}
+
+plus    = { "+" }
+minus   = { "-" }
+asterix = { "*" }
+div     = { "/" }
+modulo  = { "%" }
+
+logical = {
+    leq
+  | lless
+  | llesseq
+  | lmore
+  | lmoreeq
+  | lneq
+  | land
+  | lor
+}
+
+leq     = { "==" }
+lless   = { "<" }
+llesseq = { "<=" }
+lmore   = { ">" }
+lmoreeq = { ">=" }
+lneq    = { "!=" }
+land    = { "&&" }
+lor     = { "||" }
+
+binary = {
+    band
+  | bor
+  | bxor
+  | bshiftr
+  | bshiftl
+}
+
+band    = { "&" }
+bor     = { "|" }
+bxor    = { "^" }
+bshiftr = { ">>" }
+bshiftl = { "<<" }
+
+primary = {
+    size_ofe
+  | "(" ~ rval_expr ~ ")" ~ ("as" ~ type)?
+  | lval_expr
+  | literals
+}
+
+size_ofe = { "size_of" ~ ":" ~ type ~ "," }
+
+func_call = { identifier ~ ":" ~ (rval_expr ~ ",")* }
+
+lval_expr = { ("*"+ | "&"?) ~ (func_call | identifier) ~ ("." ~ identifier)* ~ (("[" ~ rval_expr ~ "]")*) }
+
+rval_expr = {
+    prefix* ~ primary ~ (infix ~ prefix* ~ primary)*
+}
+
+reserved_keywords = {
+    "import"
+  | "if"
+  | "for"
+  | "break"
+  | "func"
+  | "struct"
+  | "size_of"
+  | "ret"
+  | "cti"
+  | "brk"
+}
+
+identifier = @{
+    !reserved_keywords ~ (LETTER | "_") ~ (LETTER | ASCII_DIGIT | "_")*
+  | reserved_keywords ~ (LETTER | ASCII_DIGIT | "_")+
+}
