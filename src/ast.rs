@@ -3,6 +3,7 @@ use pest::Parser;
 use std::collections::{BTreeMap, HashMap};
 #[derive(Clone, Copy)]
 pub enum InbuiltType {
+    Void,
     Bool,
     I8,
     I16,
@@ -23,6 +24,7 @@ pub enum InbuiltType {
 }
 lazy_static! {
     pub static ref str2type: BTreeMap<&'static str, InbuiltType> = BTreeMap::from([
+        ("void", InbuiltType::Void),
         ("bool", InbuiltType::Bool),
         ("i8", InbuiltType::I8),
         ("i16", InbuiltType::I16),
@@ -49,6 +51,11 @@ pub enum ZagapType {
     Array { t: Box<ZagapType>, size: usize },
     Inbuilt(InbuiltType),
 }
+impl Default for ZagapType {
+    fn default() -> Self {
+        ZagapType::Inbuilt(InbuiltType::Void)
+    }
+}
 
 #[derive(Default)]
 pub struct Struct_def<'a> {
@@ -56,16 +63,19 @@ pub struct Struct_def<'a> {
     pub elements: BTreeMap<&'a str, ZagapType>,
 }
 
-pub struct Function_def<'a> {
-    export_name: Option<&'a str>,
-    ret: ZagapType,
-    args: Vec<ZagapType>,
-    code: CodeBlock<'a>,
+#[derive(Default)]
+pub struct FunctionDef<'a> {
+    pub import: bool,
+    pub export_name: Option<&'a str>,
+    pub ret: ZagapType,
+    pub args: Vec<(&'a str,ZagapType)>,
+    pub code: CodeBlock<'a>,
 }
+
 #[derive(Default)]
 pub struct ProgramTable<'a> {
     pub structs: Vec<Struct_def<'a>>,
-    pub funcs: Vec<Function_def<'a>>,
+    pub funcs: Vec<FunctionDef<'a>>,
     pub str2func: HashMap<&'a str, usize>,
     pub str2struct: HashMap<&'a str, usize>,
 }
@@ -93,6 +103,7 @@ pub enum UnaryOp {
     Lnot,
     Bnot,
 }
+
 pub enum BinaryOp {
     Plus,
     Minus,
