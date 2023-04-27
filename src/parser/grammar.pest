@@ -43,7 +43,7 @@ type = {
 
 ptr_type   = { "*" ~ type }
 array_type = { "[" ~ type ~ ";" ~ int_number ~ "]" }
-array_def  = { "[" ~ type ~ ";" ~ rval_expr ~ "]" }
+array_def  = { "[" ~ type ~ ";" ~ expr ~ "]" }
 
 exportk = { "export" }
 
@@ -53,35 +53,44 @@ struct_def = { exportk? ~ "struct" ~ identifier ~ ("as" ~ identifier)? ~ "{" ~ a
 
 function_def = { exportk? ~ "func" ~ identifier ~ ":" ~ arg* ~ "->" ~ type ~ code_block }
 
-function_import = { "import" ~ "func" ~ identifier ~ ":" ~ (identifier ~ ":" ~ type)* ~ "->" ~ type ~ "as" ~ identifier }
+function_import = { "import" ~ "func" ~ identifier ~ ":" ~ arg* ~ "->" ~ type ~ ("as" ~ identifier)? }
 
 code_block = { "{" ~ statement* ~ "}" }
 
 statement = {
-    "ret" ~ rval_expr ~ ";"
-  | "cti" ~ ";"
-  | "brk" ~ ";"
+    ret
+  | brk
+  | cti
   | if_block
   | for_block
-  | (assigment | declarationinit | declaration | rval_expr) ~ ";"
+  | code_block
+  | (assigment | expr | declarationinit | declaration) ~ ";"
 }
 
+ret = { "ret" ~ expr ~ ";" }
+cti = { "cti" ~ ";" }
+brk = { "brk" ~ ";" }
+
 declaration     = { identifier ~ ":" ~ (array_def | type) }
-declarationinit = { declaration ~ "=" ~ rval_expr }
-assigment       = { lval_expr ~ "=" ~ rval_expr }
+declarationinit = { declaration ~ "=" ~ expr }
+assigment       = { expr ~ "=" ~ expr }
 
-if_block = { "if" ~ rval_expr ~ code_block ~ ("else" ~ (code_block | if_block))? }
+if_block = { "if" ~ expr ~ code_block ~ ("else" ~ (code_block | if_block))? }
 
-for_block = { for_while | for_c }
+for_block = { for_while | for_c | for_loop }
 
 for_while = {
-    "for" ~ rval_expr ~ code_block
+    "for" ~ expr ~ code_block
 }
 
 for_c = { "for" ~ statement ~ statement ~ statement ~ code_block }
 
+for_loop = { "for" ~ code_block }
+
 prefix = {
-    minus
+    dref
+  | to_ptr
+  | minus
   | lnot
   | bnot
 }
@@ -95,8 +104,8 @@ infix = {
   | asterix
   | div
   | modulo
-  | logical
   | binary
+  | logical
 }
 
 plus    = { "+" }
@@ -139,21 +148,25 @@ bxor    = { "^" }
 bshiftr = { ">>" }
 bshiftl = { "<<" }
 
-primary = {
-    size_ofe
-  | "(" ~ rval_expr ~ ")" ~ ("as" ~ type)?
-  | lval_expr
-  | literals
-}
-
 size_ofe = { "size_of" ~ ":" ~ type ~ "," }
 
-func_call = { identifier ~ ":" ~ (rval_expr ~ ",")* }
+func_call_ = { identifier ~ ":" ~ (expr ~ ",")* }
 
-lval_expr = { ("*"+ | "&"?) ~ (func_call | identifier) ~ ("." ~ identifier)* ~ (("[" ~ rval_expr ~ "]")*) }
+func_call = { size_ofe | func_call_ }
 
-rval_expr = {
-    prefix* ~ primary ~ (infix ~ prefix* ~ primary)*
+primary = { func_call | identifier | literals | "(" ~ expr ~ ")" }
+
+dref   = { "*" }
+to_ptr = { "&" }
+
+postfix = { type_change | element | index }
+
+type_change = { ("as" ~ type) }
+element     = { "." ~ identifier }
+index       = { "[" ~ expr ~ "]" }
+
+expr = {
+    prefix* ~ primary ~ postfix* ~ (infix ~ prefix* ~ primary ~ postfix*)*
 }
 
 reserved_keywords = {

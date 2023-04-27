@@ -104,7 +104,7 @@ dependencies = [
  "pest_meta",
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.15",
 ]
 
 [[package]]
@@ -137,6 +137,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustc_version"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "138e3e0acb6c9fb258b19b67cb8abd63c00679d2851805ea151465464fe9030a"
+dependencies = [
+ "semver",
+]
+
+[[package]]
+name = "semver"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
+dependencies = [
+ "semver-parser",
+]
+
+[[package]]
+name = "semver-parser"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
+
+[[package]]
 name = "sha2"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -145,6 +169,17 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "syn"
+version = "1.0.109"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72b64191b275b66ffe2469e8af2c1cfe3bafa67b529ead792a6d0160888b4237"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "unicode-ident",
 ]
 
 [[package]]
@@ -175,7 +210,7 @@ checksum = "f9456a42c5b0d803c8cd86e73dd7cc9edd429499f37a3550d286d5e86720569f"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn",
+ "syn 2.0.15",
 ]
 
 [[package]]
@@ -203,10 +238,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
+name = "you-can"
+version = "0.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba6a85078bdc61e033b9b2c8f74890f7ba0b995547fd3644b70b686072672175"
+dependencies = [
+ "you-can-build-macros",
+]
+
+[[package]]
+name = "you-can-build-macros"
+version = "0.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8a2ad209862b430f3d1411729775f7fcdaf3cdf2727963efda91a03f9e1bdf82"
+dependencies = [
+ "quote",
+ "rustc_version",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "zagap"
 version = "0.1.0"
 dependencies = [
  "lazy_static",
  "pest",
  "pest_derive",
+ "you-can",
 ]
