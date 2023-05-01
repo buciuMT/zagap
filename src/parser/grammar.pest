@@ -64,7 +64,7 @@ statement = {
   | if_block
   | for_block
   | code_block
-  | (assigment | expr | declarationinit | declaration) ~ ";"
+  | (assigment | declarationinit | declaration | expr) ~ ";"
 }
 
 ret = { "ret" ~ expr ~ ";" }
@@ -75,19 +75,19 @@ declaration     = { identifier ~ ":" ~ (array_def | type) }
 declarationinit = { declaration ~ "=" ~ expr }
 assigment       = { expr ~ "=" ~ expr }
 
-if_block = { "if" ~ expr ~ code_block ~ ("else" ~ (code_block | if_block))? }
-
-for_block = { for_while | for_c | for_loop }
+if_block = { "if" ~ expr ~ code_block ~ ("else" ~ (code_block | wraper_if))? }
+wraper_if = { if_block }
+for_block = _{ for_while | for_c | for_loop }
 
 for_while = {
     "for" ~ expr ~ code_block
 }
 
-for_c = { "for" ~ statement ~ statement ~ statement ~ code_block }
+for_c = { "for" ~ statement ~ expr~";" ~ statement ~ code_block }
 
 for_loop = { "for" ~ code_block }
 
-prefix = {
+prefix = _{
     dref
   | to_ptr
   | minus
@@ -98,7 +98,7 @@ prefix = {
 lnot = { "!" }
 bnot = { "~" }
 
-infix = {
+infix = _{
     plus
   | minus
   | asterix
@@ -154,12 +154,12 @@ func_call_ = { identifier ~ ":" ~ (expr ~ ",")* }
 
 func_call = { size_ofe | func_call_ }
 
-primary = { func_call | identifier | literals | "(" ~ expr ~ ")" }
+primary = _{ func_call | identifier | literals | "(" ~ expr ~ ")" }
 
 dref   = { "*" }
 to_ptr = { "&" }
 
-postfix = { type_change | element | index }
+postfix = _{ type_change | element | index }
 
 type_change = { ("as" ~ type) }
 element     = { "." ~ identifier }

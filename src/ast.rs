@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 use pest::Parser;
 use std::collections::{BTreeMap, HashMap};
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub enum InbuiltType {
     Void,
     Bool,
@@ -45,7 +45,7 @@ lazy_static! {
     ]);
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ZagapType {
     Ptr(Box<ZagapType>),
     Struct(usize),
@@ -58,13 +58,13 @@ impl Default for ZagapType {
     }
 }
 
-#[derive(Default, Clone)]
-pub struct Struct_def<'a> {
+#[derive(Default, Clone, Debug)]
+pub struct StructDef<'a> {
     pub export_name: Option<&'a str>,
     pub elements: BTreeMap<&'a str, ZagapType>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct FunctionDef<'a> {
     pub import: bool,
     pub export_name: Option<&'a str>,
@@ -73,45 +73,52 @@ pub struct FunctionDef<'a> {
     pub code: CodeBlock<'a>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct ProgramTable<'a> {
-    pub structs: Vec<Struct_def<'a>>,
+    pub structs: Vec<StructDef<'a>>,
     pub funcs: Vec<FunctionDef<'a>>,
     pub str2func: HashMap<&'a str, usize>,
     pub str2struct: HashMap<&'a str, usize>,
 }
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct CodeBlock<'a> {
     pub statements: Vec<Statement<'a>>,
     pub vars: BTreeMap<&'a str, (usize, ZagapType)>,
 }
 
-#[derive(Clone)]
+
+#[derive(Clone, Debug)]
 pub enum Statement<'a> {
-    Assigment(Expr<'a>, Expr<'a>),
-    Expr(Expr<'a>),
+    Assigment(Box<Expr<'a>>, Box<Expr<'a>>),
+    Expr(Box<Expr<'a>>),
     Code(CodeBlock<'a>),
+    IfBlock {
+        cond: Box<Expr<'a>>,
+        ftrue: Box<Statement<'a>>,
+        ffalse: Option<Box<Statement<'a>>>,
+    },
     Cfor {
         init: Box<Statement<'a>>,
-        cond: Expr<'a>,
+        cond: Box<Expr<'a>>,
         post: Box<Statement<'a>>,
         code: CodeBlock<'a>,
     },
-    Cwhile(Expr<'a>, CodeBlock<'a>),
+    Cwhile(Box<Expr<'a>>, CodeBlock<'a>),
     Cloop(CodeBlock<'a>),
-    Ret(Expr<'a>),
+    Ret(Box<Expr<'a>>),
     Cti,
     Brk,
+    None,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum UnaryOp {
     Minus,
     Lnot,
     Bnot,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum BinaryOp {
     Plus,
     Minus,
@@ -133,7 +140,7 @@ pub enum BinaryOp {
     Bshiftl,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expr<'a> {
     Etypechange(Box<Expr<'a>>, ZagapType),
     EUnary {
@@ -147,7 +154,7 @@ pub enum Expr<'a> {
     },
     EDref(Box<Expr<'a>>),
     EPtr(Box<Expr<'a>>),
-    EFuncCall(usize, Vec<Expr<'a>>),
+    EFuncCall(usize, Vec<Box<Expr<'a>>>),
     EClit(char),
     Eslit(&'a str),
     Enlit(f64),

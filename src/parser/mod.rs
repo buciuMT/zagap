@@ -1,20 +1,15 @@
-use lazy_static;
-use pest::pratt_parser;
-use pest::pratt_parser::PrattParser;
-use std::collections::hash_map::Iter;
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::default;
-use std::env::args;
-
+use crate::ast::BinaryOp;
 use crate::ast::CodeBlock;
 use crate::ast::Expr;
 use crate::ast::FunctionDef;
-use crate::ast::InbuiltType;
 use crate::ast::Statement;
-use crate::ast::Struct_def;
+use crate::ast::StructDef;
+use crate::ast::UnaryOp;
 use crate::ast::ZagapType;
 use crate::ast::STR2TYPE;
+use lazy_static;
+use pest::pratt_parser::PrattParser;
+use std::collections::BTreeMap;
 
 use super::ast::ProgramTable;
 use pest::iterators::Pair;
@@ -35,7 +30,8 @@ lazy_static::lazy_static! {
         .op(Op::infix(binary, Left))
         .op(Op::infix(plus, Left)|Op::infix(minus, Left))
         .op(Op::infix(asterix, Left)|Op::infix(div, Left)|Op::infix(modulo, Left))
-        .op(Op::postfix(type_change)|Op::postfix(element)|Op::postfix(index))
+        .op(Op::prefix(dref)|Op::prefix(to_ptr)|Op::prefix(lnot)|Op::prefix(bnot))
+        .op(Op::postfix(element)|Op::postfix(index))
     };
 }
 
@@ -58,7 +54,7 @@ pub fn parse_programtable<'a>(code: &'a str) -> ProgramTable {
                 }
                 let name = tok.as_str();
                 res.str2struct.insert(name, res.structs.len());
-                res.structs.push(super::ast::Struct_def::default());
+                res.structs.push(super::ast::StructDef::default());
             }
             _ => {}
         }
@@ -116,13 +112,14 @@ pub fn parse_programtable<'a>(code: &'a str) -> ProgramTable {
             _ => {}
         }
     }
-    todo!()
+    res
 }
 
 fn parse_function_def<'a>(ast: Pair<'a, Rule>, table: &ProgramTable) -> (&'a str, FunctionDef<'a>) {
     let mut it = ast.into_inner();
     let mut tok = it.next().unwrap();
     let mut val = FunctionDef::default();
+    let empty_btree = BTreeMap::new();
     if tok.as_rule() == Rule::exportk {
         tok = it.next().unwrap();
         val.export_name = Some(tok.as_str());
@@ -130,10 +127,13 @@ fn parse_function_def<'a>(ast: Pair<'a, Rule>, table: &ProgramTable) -> (&'a str
     let name = tok.as_str();
     for i in it {
         match i.as_rule() {
-            Rule::arg => val.args.push(parse_arg(i, &table)),
+            Rule::r#type => val.ret = parse_type(i, table),
+            Rule::arg => val.args.push(parse_arg(i, table)),
             Rule::identifier => val.export_name = Some(i.as_str()),
-            Rule::code_block => val.code = parse_code_block(i, &table, 0, None),
-            _ => unreachable!(),
+            Rule::code_block => val.code = parse_code_block(i, &table, 0, &empty_btree),
+            _ => {
+                unreachable!()
+            }
         }
     }
     (name, val)
@@ -142,13 +142,19 @@ fn parse_function_def<'a>(ast: Pair<'a, Rule>, table: &ProgramTable) -> (&'a str
 fn parse_code_block<'a>(
     ast: Pair<'a, Rule>,
     table: &ProgramTable,
-    var_namer: usize,
-    var_lookup: Option<&BTreeMap<&'a str, usize>>,
+    mut var_namer: usize,
+    var_lookup: &BTreeMap<&'a str, (usize, ZagapType)>,
 ) -> CodeBlock<'a> {
     let mut res = CodeBlock::default();
+    let mut lookup = var_lookup.clone();
     for i in ast.into_inner() {
-        res.statements
-            .push(parse_statement(i, &table, &mut res.vars, var_namer, None))
+        let (st, dec) = parse_statement(i, table, &lookup, var_namer);
+        if let Some(dec) = dec {
+            var_namer += 1;
+            res.vars.insert(dec.0, (dec.1, dec.2.clone()));
+            lookup.insert(dec.0, (dec.1, dec.2));
+        }
+        res.statements.push(st);
     }
     res
 }
@@ -156,50 +162,237 @@ fn parse_code_block<'a>(
 fn parse_statement<'a>(
     ast: Pair<'a, Rule>,
     table: &ProgramTable,
-    c_var: &mut BTreeMap<&'a str, (usize, ZagapType)>,
+    c_var: &BTreeMap<&'a str, (usize, ZagapType)>,
     var_namer: usize,
-    var_lookup: Option<&BTreeMap<&'a str, usize>>,
-) -> Statement<'a> {
+) -> (Statement<'a>, Option<(&'a str, usize, ZagapType)>) {
     let mut it = ast.into_inner();
-    todo!()
+    let val = it.next().unwrap();
+    match val.as_rule() {
+        Rule::ret => (
+            Statement::Ret(parse_expr(val.into_inner().next().unwrap(), table, c_var)),
+            None,
+        ),
+        Rule::brk => (Statement::Brk, None),
+        Rule::cti => (Statement::Cti, None),
+        Rule::if_block => {
+            let mut it = val.into_inner();
+            let cond = parse_expr(it.next().unwrap(), table, c_var);
+            let ftrue = Statement::Code(parse_code_block(
+                it.next().unwrap(),
+                table,
+                var_namer,
+                c_var,
+            ));
+            (
+                Statement::IfBlock {
+                    cond: cond,
+                    ftrue: Box::from(ftrue),
+                    ffalse: it.next().map(|x| {
+                        Box::from(match x.as_rule() {
+                            Rule::code_block => {
+                                Statement::Code(parse_code_block(x, table, var_namer, c_var))
+                            }
+                            Rule::wraper_if => parse_statement(x, table, c_var, var_namer).0,
+                            _ => unreachable!(),
+                        })
+                    }),
+                },
+                None,
+            )
+        }
+        Rule::for_while => {
+            let mut it = val.into_inner();
+            let cond = parse_expr(it.next().unwrap(), table, c_var);
+            (
+                Statement::Cwhile(
+                    cond,
+                    parse_code_block(it.next().unwrap(), table, var_namer, c_var),
+                ),
+                None,
+            )
+        }
+        Rule::for_c => todo!(),
+        Rule::for_loop => (
+            Statement::Cloop(parse_code_block(
+                val.into_inner().next().unwrap(),
+                table,
+                var_namer,
+                c_var,
+            )),
+            None,
+        ),
+        Rule::code_block => (
+            Statement::Code(parse_code_block(val, table, var_namer, c_var)),
+            None,
+        ),
+        Rule::assigment => {
+            let mut it = val.into_inner();
+            let first = parse_expr(it.next().unwrap(), table, c_var);
+            let second = parse_expr(it.next().unwrap(), table, c_var);
+            (Statement::Assigment(first, second), None)
+        }
+        Rule::expr => (
+            Statement::Expr(parse_expr(val.into_inner().peek().unwrap(), table, c_var)),
+            None,
+        ),
+        Rule::declaration => {
+            let mut it = val.into_inner();
+            let name = it.next().unwrap().as_str();
+            let val = it.next().unwrap();
+            let t = match val.as_rule() {
+                Rule::array_def => todo!(),
+                Rule::r#type => parse_type(val, table),
+                _ => unreachable!(),
+            };
+            (Statement::None, Some((name, var_namer, t)))
+        }
+        Rule::declarationinit => {
+            let mut it = val.clone().into_inner();
+            it.next();
+            if let (_, Some(var)) = parse_statement(val, table, c_var, var_namer) {
+                (
+                    Statement::Assigment(
+                        Box::from(Expr::EVar(var.1)),
+                        parse_expr(it.next().unwrap(), table, c_var),
+                    ),
+                    Some(var),
+                )
+            } else {
+                unreachable!()
+            }
+        }
+        _ => unreachable!(),
+    }
 }
 
 fn parse_expr<'a>(
     ast: Pair<'a, Rule>,
     table: &ProgramTable,
     c_var: &BTreeMap<&'a str, (usize, ZagapType)>,
-) -> Expr<'a> {
+) -> Box<Expr<'a>> {
     PRATT
-        .map_primary(|primary| match primary.as_rule() {
-            Rule::func_call => {
-                let mut it = primary.into_inner();
-                let name = it.next().unwrap().as_str();
-                Expr::EFuncCall(
-                    table.str2func[name],
-                    it.map(|e| parse_expr(e, &table, &c_var)).collect(),
-                )
-            }
-            Rule::identifier => Expr::EVar(table.str2func[primary.as_str()]),
-            Rule::literals => {
-                let it = primary.into_inner();
-                match it.peek().unwrap().as_rule() {
-                    Rule::char_literal => unimplemented!(),
-                    Rule::string_literal => Expr::Eslit(it.as_str()),
-                    Rule::string_literal => Expr::Enlit(it.as_str().parse().expect("not a number")),
-                    _ => unreachable!(),
+        .map_primary(|primary| {
+            Box::from(match primary.as_rule() {
+                Rule::func_call => {
+                    let mut it = primary.into_inner();
+                    let name = it.next().unwrap().into_inner().next().unwrap().as_str();
+                    Expr::EFuncCall(
+                        *table
+                            .str2func
+                            .get(name)
+                            .unwrap_or_else(|| panic!("Unknown function `{name}`")),
+                        it.map(|e| parse_expr(e, &table, &c_var)).collect(),
+                    )
                 }
-            }
-            Rule::expr => parse_expr(primary, &table, &c_var),
-            _ => unreachable!(),
+                Rule::identifier => Expr::EVar(
+                    c_var
+                        .get(primary.as_str())
+                        .unwrap_or_else(|| {
+                            panic!("Unknown variable {name}", name = primary.as_str())
+                        })
+                        .0,
+                ),
+                Rule::literals => {
+                    let it = primary.into_inner();
+                    match it.peek().unwrap().as_rule() {
+                        Rule::char_literal => todo!(),
+                        Rule::string_literal => Expr::Eslit(it.as_str()),
+                        Rule::number_literal => {
+                            Expr::Enlit(it.as_str().parse().expect("not a number"))
+                        }
+                        _ => unreachable!(),
+                    }
+                }
+                Rule::expr => *parse_expr(primary, &table, &c_var),
+                _ => unreachable!(),
+            })
         })
         .map_prefix(|op, rhs| match op.as_rule() {
+            Rule::dref => Box::from(Expr::EDref(rhs)),
+            Rule::to_ptr => Box::from(Expr::EPtr(rhs)),
+            Rule::minus => Box::from(Expr::EUnary {
+                op: UnaryOp::Minus,
+                val: rhs,
+            }),
+            Rule::lnot => Box::from(Expr::EUnary {
+                op: UnaryOp::Lnot,
+                val: rhs,
+            }),
+            Rule::bnot => Box::from(Expr::EUnary {
+                op: UnaryOp::Bnot,
+                val: rhs,
+            }),
             _ => unimplemented!(),
         })
         .map_postfix(|lhs, op| match op.as_rule() {
+            Rule::index => Box::from(Expr::EIndex {
+                lhs: lhs,
+                rhs: parse_expr(op.into_inner().next().unwrap(), table, c_var),
+            }),
+            Rule::element => Box::from(Expr::EElement(
+                lhs,
+                op.into_inner().next().unwrap().as_str(),
+            )),
+            Rule::type_change => Box::from(Expr::Etypechange(
+                lhs,
+                parse_type(op.into_inner().next().unwrap(), table),
+            )),
             _ => unimplemented!(),
         })
         .map_infix(|lhs, op, rhs| match op.as_rule() {
-            _ => unimplemented!(),
+            Rule::plus => Box::from(Expr::EBinary {
+                lhs: lhs,
+                rhs: rhs,
+                op: BinaryOp::Plus,
+            }),
+            Rule::minus => Box::from(Expr::EBinary {
+                lhs: lhs,
+                rhs: rhs,
+                op: BinaryOp::Minus,
+            }),
+            Rule::asterix => Box::from(Expr::EBinary {
+                lhs: lhs,
+                rhs: rhs,
+                op: BinaryOp::Asterix,
+            }),
+            Rule::div => Box::from(Expr::EBinary {
+                lhs: lhs,
+                rhs: rhs,
+                op: BinaryOp::Div,
+            }),
+            Rule::modulo => Box::from(Expr::EBinary {
+                lhs: lhs,
+                rhs: rhs,
+                op: BinaryOp::Modulo,
+            }),
+            Rule::binary => Box::from(Expr::EBinary {
+                lhs: lhs,
+                rhs: rhs,
+                op: match op.into_inner().next().unwrap().as_rule() {
+                    Rule::band => BinaryOp::Band,
+                    Rule::bor => BinaryOp::Bor,
+                    Rule::bxor => BinaryOp::Bxor,
+                    Rule::bshiftr => BinaryOp::Bshiftr,
+                    Rule::bshiftl => BinaryOp::Bshiftl,
+                    _ => unreachable!(),
+                },
+            }),
+            Rule::logical => Box::from(Expr::EBinary {
+                lhs: lhs,
+                rhs: rhs,
+                op: match op.into_inner().next().unwrap().as_rule() {
+                    Rule::leq => BinaryOp::Leq,
+                    Rule::lless => BinaryOp::Lless,
+                    Rule::llesseq => BinaryOp::Llesseq,
+                    Rule::lmore => BinaryOp::Lmore,
+                    Rule::lmoreeq => BinaryOp::Lmoreeq,
+                    Rule::lneq => BinaryOp::Lneq,
+                    Rule::land => BinaryOp::Land,
+                    Rule::lor => BinaryOp::Lor,
+                    _ => unreachable!(),
+                },
+            }),
+            _ => unreachable!(),
         })
         .parse(ast.into_inner())
 }
@@ -242,8 +435,8 @@ fn parse_type<'a>(ast: Pair<Rule>, table: &'a ProgramTable) -> ZagapType {
     }
 }
 
-fn parse_struct<'a>(ast: Pair<'a, Rule>, table: &ProgramTable<'a>) -> (&'a str, Struct_def<'a>) {
-    let mut res = Struct_def::default();
+fn parse_struct<'a>(ast: Pair<'a, Rule>, table: &ProgramTable<'a>) -> (&'a str, StructDef<'a>) {
+    let mut res = StructDef::default();
     let mut it = ast.into_inner();
     let mut val = it.next().unwrap();
     if val.as_rule() == Rule::exportk {

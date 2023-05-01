@@ -11,13 +11,15 @@ fn main() {
         bxa:i64,
     }
     ");*/parse_programtable(
-        "import IO
-        struct name{
-            ast:i32,
-            bxa:i64,
+        "
+        func main:->i32{
+            ret two:;
         }
-        func main:->i32
+
+        func two:->i32{
+            ret 2;
+        }
         ",
     );
-    //print!("{x:#?}");
+    print!("{x:#?}");
 }
