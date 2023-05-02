@@ -5,7 +5,7 @@ mod parser;
 use backend::generate_c;
 use importer::get_all_imports;
 use parser::parse_programtable;
-use std::env;
+use std::{env, process};
 use std::fs::{self, create_dir_all, File};
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
@@ -40,7 +40,14 @@ fn main() -> std::io::Result<()> {
         "obj" => CompileMode::Obj,
         "build" => CompileMode::Build,
         "run" => CompileMode::Run,
-        "addlib" => todo!(),
+        "addlib" => {
+            sargs.next();
+            for i in sargs{
+                let path=Path::new(&i);
+                fs::copy(path, stdlib_dir.join(path.file_name().unwrap()))?;
+            }
+            process::exit(0);
+        },
         _ => panic!("Unknown mode"),
     };
     let args = arguments::parse(sargs).expect("Argument parse has failed");
@@ -68,7 +75,7 @@ fn main() -> std::io::Result<()> {
             CompileMode::Genc => format!("{main_file}.c"),
             CompileMode::Obj => format!("{main_file}.o"),
             CompileMode::Build => "exe".to_string(),
-            CompileMode::Run => "".to_string(),
+            CompileMode::Run => "exe".to_string(),
         });
     let paths = get_all_imports(Path::new(&main_file), &libfolders);
     let code: String = paths
@@ -99,7 +106,7 @@ fn main() -> std::io::Result<()> {
                 .arg(&cfile_path)
                 .args(extra)
                 .arg(format!("-o{out}"))
-                .spawn()?;
+                .spawn()?.wait()?;
         }
         CompileMode::Obj => {
             Command::new(cc.to_string())
@@ -107,9 +114,17 @@ fn main() -> std::io::Result<()> {
                 .args(extra)
                 .arg("-c")
                 .arg(format!("-o{out}"))
-                .spawn()?;
+                .spawn()?.wait()?;
         }
-        CompileMode::Run => todo!(),
+        CompileMode::Run => {
+            Command::new(cc.to_string())
+                .arg(&cfile_path)
+                .args(extra)
+                .arg("-c")
+                .arg(format!("-o{out}"))
+                .spawn()?.wait()?;
+            Command::new(out).spawn()?.wait()?;
+        },
     }
 
     Ok(())

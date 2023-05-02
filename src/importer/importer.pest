@@ -1,9 +1,9 @@
 all = { import* ~ other }
 
-WHITESPACE = _{ (" " | "\n" | "\t")+ }
+WHITESPACE = _{ (" " | "\r\n" | "\n" | "\t")+ }
 
 COMMENT = _{
-    "//" ~ (!"\n" ~ ANY)
+    "//" ~ (!("\n"|"\r\n") ~ ANY)
   | "/*" ~ (!"*/" ~ ANY)
 }
 

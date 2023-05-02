@@ -1,4 +1,4 @@
-use std::{fs::write, io};
+use std::io;
 
 use crate::ast::ProgramTable;
 
