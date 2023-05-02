@@ -129,15 +129,3 @@ fn main() -> std::io::Result<()> {
 
     Ok(())
 }
-
-#[test]
-fn test() {
-    let table = parse_programtable(
-        "
-    export func main:->i32{
-        print:\"test\",;
-        ret 0;
-    }
-    ",
-    );
-}

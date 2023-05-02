@@ -36,8 +36,8 @@ impl CGen for ProgramTable<'_> {
             name_of_struct(*i.1, table, writer)?;
             write!(writer, "{{")?;
             for arg in self.structs[*i.1].elements.iter() {
-                arg.1.gen_c_code(table, writer)?;
-                write!(writer, " {name};", name = arg.0)?;
+                generate_declaration(arg.1, arg.0, table, writer)?;
+                write!(writer, ";")?;
             }
             write! {writer,"}};"}?;
         }
@@ -52,8 +52,7 @@ impl CGen for ProgramTable<'_> {
             let mut it = self.funcs[*i.1].args.iter().peekable();
             let mut namer = 0;
             while let Some(val) = it.next() {
-                val.1.gen_c_code(table, writer)?;
-                write!(writer, " v{namer}")?;
+                generate_declaration(&val.1, format!("v{namer}").as_str(), table, writer)?;
                 namer += 1;
                 if let Some(_) = it.peek() {
                     write!(writer, ",")?;
@@ -66,9 +65,45 @@ impl CGen for ProgramTable<'_> {
     }
 }
 
-fn generate_type_for_var(t: &ZagapType, var_name: &str, table: &ProgramTable) -> io::Result<()> {
-    todo!();
+fn generate_declaration<T: io::Write>(
+    t: &ZagapType,
+    var_name: &str,
+    table: &ProgramTable,
+    writer: &mut T,
+) -> io::Result<()> {
+    base_type(t).gen_c_code(table, writer)?;
+    generate_type_modifiers(t, var_name, table, writer)?;
     Ok(())
+}
+
+fn generate_type_modifiers<T: io::Write>(
+    t: &ZagapType,
+    var_name: &str,
+    table: &ProgramTable,
+    writer: &mut T,
+) -> io::Result<()> {
+    write!(writer, "(")?;
+    match t {
+        ZagapType::Ptr(p) => {
+            write!(writer, "*")?;
+            generate_type_modifiers(p, var_name, table, writer)?;
+        }
+        ZagapType::Array { t, size } => {
+            generate_type_modifiers(t, var_name, table, writer)?;
+            write!(writer, "[{size}]")?;
+        }
+        _ => write!(writer, "{var_name}")?,
+    }
+    write!(writer, ")")?;
+    Ok(())
+}
+
+fn base_type(t: &ZagapType) -> &ZagapType {
+    match t {
+        ZagapType::Ptr(t) => base_type(t),
+        ZagapType::Array { t, size: _ } => base_type(t),
+        _ => t,
+    }
 }
 
 impl CGen for ZagapType {
@@ -142,8 +177,13 @@ impl CGen for CodeBlock<'_> {
     fn gen_c_code<T: io::Write>(&self, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
         write!(writer, "{{")?;
         for i in self.vars.iter() {
-            i.1 .1.gen_c_code(table, writer)?;
-            write!(writer, " v{name};", name = i.1 .0)?; //TODO: init 0;
+            generate_declaration(
+                &i.1 .1,
+                format!("v{namer}", namer = i.1 .0).as_str(),
+                table,
+                writer,
+            )?;
+            write!(writer, ";")?; //TODO: init 0;
         }
         for i in self.statements.iter() {
             i.gen_c_code(table, writer)?;
@@ -205,7 +245,6 @@ impl CGen for Statement<'_> {
             }
             Self::Cti => write!(writer, "continue;")?,
             Self::Brk => write!(writer, "break;")?,
-            _ => todo!(),
         }
         Ok(())
     }
@@ -299,7 +338,7 @@ impl CGen for Expr<'_> {
                 lhs.gen_c_code(table, writer)?;
                 write!(writer, "[")?;
                 rhs.gen_c_code(table, writer)?;
-                write!(writer, "[")?;
+                write!(writer, "]")?;
             }
         }
         Ok(())
