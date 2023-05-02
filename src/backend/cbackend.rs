@@ -66,6 +66,11 @@ impl CGen for ProgramTable<'_> {
     }
 }
 
+fn generate_type_for_var(t: &ZagapType, var_name: &str, table: &ProgramTable) -> io::Result<()> {
+    todo!();
+    Ok(())
+}
+
 impl CGen for ZagapType {
     fn gen_c_code<T: io::Write>(&self, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
         match self {
@@ -189,6 +194,10 @@ impl CGen for Statement<'_> {
                 write!(writer, ")")?;
                 code.gen_c_code(table, writer)?;
             }
+            Self::Cloop(code) => {
+                write!(writer, "while(1)")?;
+                code.gen_c_code(table, writer)?;
+            }
             Self::Ret(expr) => {
                 write!(writer, "return ")?;
                 expr.gen_c_code(table, writer)?;
@@ -277,7 +286,7 @@ impl CGen for Expr<'_> {
                 }
                 write!(writer, ")")?;
             }
-            Self::EClit(_c) => todo!(),
+            Self::EClit(c) => write!(writer, "{c}")?,
             Self::Eslit(s) => write!(writer, "{s}")?,
             Self::Enlit(n) => write!(writer, "{n}")?,
             Self::EVar(v) => write!(writer, "v{v}")?,

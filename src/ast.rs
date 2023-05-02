@@ -153,7 +153,7 @@ pub enum Expr<'a> {
     EDref(Box<Expr<'a>>),
     EPtr(Box<Expr<'a>>),
     EFuncCall(usize, Vec<Box<Expr<'a>>>),
-    EClit(char),
+    EClit(&'a str),
     Eslit(&'a str),
     Enlit(f64),
     EVar(usize),

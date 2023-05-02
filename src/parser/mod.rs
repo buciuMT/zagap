@@ -2,11 +2,13 @@ use crate::ast::BinaryOp;
 use crate::ast::CodeBlock;
 use crate::ast::Expr;
 use crate::ast::FunctionDef;
+use crate::ast::InbuiltType;
 use crate::ast::Statement;
 use crate::ast::StructDef;
 use crate::ast::UnaryOp;
 use crate::ast::ZagapType;
 use crate::ast::STR2TYPE;
+use core::f32;
 use lazy_static;
 use pest::pratt_parser::PrattParser;
 use std::collections::BTreeMap;
@@ -275,7 +277,6 @@ fn parse_expr<'a>(
     PRATT
         .map_primary(|primary| {
             Box::from(match primary.as_rule() {
-                //todo sizeof
                 Rule::func_call => {
                     let val = primary.into_inner().next().unwrap();
                     match val.as_rule() {
@@ -290,7 +291,10 @@ fn parse_expr<'a>(
                                 it.map(|e| parse_expr(e, &table, &c_var)).collect(),
                             )
                         }
-                        Rule::size_ofe => todo!(),
+                        Rule::size_ofe => {
+                            let tp = parse_type(val.into_inner().next().unwrap(), table);
+                            Expr::Enlit(sizeof_zagaptype(&tp, table) as f64)
+                        }
                         _ => unreachable!(),
                     }
                 }
@@ -305,7 +309,7 @@ fn parse_expr<'a>(
                 Rule::literals => {
                     let it = primary.into_inner();
                     match it.peek().unwrap().as_rule() {
-                        Rule::char_literal => todo!(),
+                        Rule::char_literal => Expr::EClit(it.as_str()),
                         Rule::string_literal => Expr::Eslit(it.as_str()),
                         Rule::number_literal => {
                             Expr::Enlit(it.as_str().parse().expect("not a number"))
@@ -473,4 +477,28 @@ fn parse_struct<'a>(ast: Pair<'a, Rule>, table: &ProgramTable<'a>) -> (&'a str, 
         res.elements.insert(name, t);
     }
     (name, res)
+}
+
+fn sizeof_zagaptype(tp: &ZagapType, table: &ProgramTable) -> usize {
+    match tp {
+        ZagapType::Ptr(_) => 8,
+        ZagapType::Array { t, size } => size * sizeof_zagaptype(t, table),
+        ZagapType::Struct(id) => table.structs[*id]
+            .elements
+            .iter()
+            .map(|x| sizeof_zagaptype(x.1, table))
+            .sum(),
+        ZagapType::Inbuilt(t) => match t {
+            InbuiltType::Void => 0,
+            InbuiltType::Bool | InbuiltType::I8 | InbuiltType::U8 | InbuiltType::C8 => 1,
+            InbuiltType::I16 | InbuiltType::U16 | InbuiltType::C16 => 2,
+            InbuiltType::I32 | InbuiltType::U32 | InbuiltType::C32 | InbuiltType::F32 => 4,
+            InbuiltType::I64
+            | InbuiltType::U64
+            | InbuiltType::F64
+            | InbuiltType::USIZE
+            | InbuiltType::ISIZE => 8,
+            InbuiltType::F128 => 16,
+        },
+    }
 }
