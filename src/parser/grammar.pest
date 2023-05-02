@@ -1,12 +1,12 @@
 WHITESPACE = _{ (" " | "\n" | "\t")+ }
 
 COMMENT = _{
-    "//" ~ (!"\n" ~ ANY)
-  | "/*" ~ (!"*/" ~ ANY)
+    "//" ~ (!"\n" ~ ANY) ~ "\n"
+  | "/*" ~ (!"*/" ~ ANY) ~ "*/"
 }
 
 program = {
-    (import*) ~ (struct_def | function_def | function_import)*
+    SOI ~ (import*) ~ (struct_def | function_def | function_import)* ~ EOI
 }
 
 import = { "import" ~ identifier }
@@ -71,19 +71,19 @@ ret = { "ret" ~ expr ~ ";" }
 cti = { "cti" ~ ";" }
 brk = { "brk" ~ ";" }
 
-declaration     = { identifier ~ ":" ~ (array_def | type) }
+declaration     = { identifier ~ ":" ~ (type | array_def) }
 declarationinit = { declaration ~ "=" ~ expr }
 assigment       = { expr ~ "=" ~ expr }
 
-if_block = { "if" ~ expr ~ code_block ~ ("else" ~ (code_block | wraper_if))? }
-wraper_if = { if_block }
+if_block  =  { "if" ~ expr ~ code_block ~ ("else" ~ (code_block | wraper_if))? }
+wraper_if =  { if_block }
 for_block = _{ for_while | for_c | for_loop }
 
 for_while = {
     "for" ~ expr ~ code_block
 }
 
-for_c = { "for" ~ statement ~ expr~";" ~ statement ~ code_block }
+for_c = { "for" ~ statement ~ expr ~ ";" ~ statement ~ code_block }
 
 for_loop = { "for" ~ code_block }
 

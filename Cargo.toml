@@ -6,7 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+arguments = "0.7.1"
+directories = "5.0.1"
 lazy_static = "1.4.0"
 pest = "2.5.5"
 pest_derive = "2.5.5"
-you-can = "0.0.14"
+#you-can = "0.0.14"

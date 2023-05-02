@@ -35,12 +35,11 @@ lazy_static::lazy_static! {
     };
 }
 
-// #[you_can::turn_off_the_borrow_checker]
 pub fn parse_programtable<'a>(code: &'a str) -> ProgramTable {
     //let mut ret;
     let mut res = ProgramTable::default();
     let ast = ZagapParser::parse(Rule::program, code)
-        .expect("Unable to parse code with error:{ast}")
+        .expect("Unable to parse code with error:{ast:#?}")
         .next()
         .unwrap();
     //----------- first pass structs ------------//
@@ -119,18 +118,24 @@ fn parse_function_def<'a>(ast: Pair<'a, Rule>, table: &ProgramTable) -> (&'a str
     let mut it = ast.into_inner();
     let mut tok = it.next().unwrap();
     let mut val = FunctionDef::default();
-    let empty_btree = BTreeMap::new();
+    let mut btree = BTreeMap::new();
     if tok.as_rule() == Rule::exportk {
         tok = it.next().unwrap();
         val.export_name = Some(tok.as_str());
     }
+    let mut namer = 0;
     let name = tok.as_str();
     for i in it {
         match i.as_rule() {
             Rule::r#type => val.ret = parse_type(i, table),
-            Rule::arg => val.args.push(parse_arg(i, table)),
+            Rule::arg => {
+                let arg = parse_arg(i, table);
+                btree.insert(arg.0, (namer, arg.1.clone()));
+                val.args.push(arg);
+                namer += 1;
+            }
             Rule::identifier => val.export_name = Some(i.as_str()),
-            Rule::code_block => val.code = parse_code_block(i, &table, 0, &empty_btree),
+            Rule::code_block => val.code = parse_code_block(i, &table, namer, &btree),
             _ => {
                 unreachable!()
             }
@@ -231,10 +236,7 @@ fn parse_statement<'a>(
             let second = parse_expr(it.next().unwrap(), table, c_var);
             (Statement::Assigment(first, second), None)
         }
-        Rule::expr => (
-            Statement::Expr(parse_expr(val.into_inner().peek().unwrap(), table, c_var)),
-            None,
-        ),
+        Rule::expr => (Statement::Expr(parse_expr(val, table, c_var)), None),
         Rule::declaration => {
             let mut it = val.into_inner();
             let name = it.next().unwrap().as_str();
@@ -273,16 +275,24 @@ fn parse_expr<'a>(
     PRATT
         .map_primary(|primary| {
             Box::from(match primary.as_rule() {
+                //todo sizeof
                 Rule::func_call => {
-                    let mut it = primary.into_inner();
-                    let name = it.next().unwrap().into_inner().next().unwrap().as_str();
-                    Expr::EFuncCall(
-                        *table
-                            .str2func
-                            .get(name)
-                            .unwrap_or_else(|| panic!("Unknown function `{name}`")),
-                        it.map(|e| parse_expr(e, &table, &c_var)).collect(),
-                    )
+                    let val = primary.into_inner().next().unwrap();
+                    match val.as_rule() {
+                        Rule::func_call_ => {
+                            let mut it = val.into_inner();
+                            let name = it.next().unwrap().as_str();
+                            Expr::EFuncCall(
+                                *table
+                                    .str2func
+                                    .get(name)
+                                    .unwrap_or_else(|| panic!("Unknown function `{name}`")),
+                                it.map(|e| parse_expr(e, &table, &c_var)).collect(),
+                            )
+                        }
+                        Rule::size_ofe => todo!(),
+                        _ => unreachable!(),
+                    }
                 }
                 Rule::identifier => Expr::EVar(
                     c_var
@@ -304,7 +314,9 @@ fn parse_expr<'a>(
                     }
                 }
                 Rule::expr => *parse_expr(primary, &table, &c_var),
-                _ => unreachable!(),
+                _ => {
+                    unreachable!()
+                }
             })
         })
         .map_prefix(|op, rhs| match op.as_rule() {
@@ -416,7 +428,10 @@ fn parse_type<'a>(ast: Pair<Rule>, table: &'a ProgramTable) -> ZagapType {
                 panic!("Unable to find type `{tp}`", tp = inner.as_str())
             }
         }
-        Rule::ptr_type => ZagapType::Ptr(Box::new(parse_type(inner, table))),
+        Rule::ptr_type => ZagapType::Ptr(Box::new(parse_type(
+            inner.into_inner().next().unwrap(),
+            table,
+        ))),
         Rule::array_type => {
             let mut it = inner.into_inner();
             let t = parse_type(it.next().unwrap(), table);
@@ -444,14 +459,13 @@ fn parse_struct<'a>(ast: Pair<'a, Rule>, table: &ProgramTable<'a>) -> (&'a str, 
         res.export_name = Some(val.as_str());
     }
     let name = val.as_str();
-    val = it.next().unwrap();
+    val = it.peek().unwrap();
     match val.as_rule() {
         Rule::identifier => {
             res.export_name = Some(val.as_str());
+            it.next();
         }
-        Rule::arg => {
-            it.next_back().unwrap();
-        }
+        Rule::arg => {}
         _ => unreachable!(),
     }
     for i in it {

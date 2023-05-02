@@ -1,0 +1,6 @@
+import func printf: str:*c8,->void as print
+
+export func main:->i32{
+	print:"test",;
+	ret 0;
+}

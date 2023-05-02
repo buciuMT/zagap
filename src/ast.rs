@@ -1,5 +1,4 @@
 use lazy_static::lazy_static;
-use pest::Parser;
 use std::collections::{BTreeMap, HashMap};
 #[derive(Clone, Copy, Debug)]
 pub enum InbuiltType {
@@ -85,7 +84,6 @@ pub struct CodeBlock<'a> {
     pub statements: Vec<Statement<'a>>,
     pub vars: BTreeMap<&'a str, (usize, ZagapType)>,
 }
-
 
 #[derive(Clone, Debug)]
 pub enum Statement<'a> {

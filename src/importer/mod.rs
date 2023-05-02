@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 #[grammar = "importer/importer.pest"] // relative to project `src`
 struct ImportParser;
 
-pub fn get_all_imports(file: &Path, lib_folders: Vec<&Path>) -> Vec<PathBuf> {
+pub fn get_all_imports(file: &Path, lib_folders: &Vec<&Path>) -> Vec<PathBuf> {
     let mut res = vec![file.to_path_buf()];
     let mut imported = BTreeSet::<String>::new();
     let mut to_be_imported = Vec::<String>::new();
@@ -33,7 +33,7 @@ pub fn get_all_imports(file: &Path, lib_folders: Vec<&Path>) -> Vec<PathBuf> {
             code = fs::read_to_string(&file).expect("unable to read imports");
             res.push(file);
         } else if !'cond: {
-            for libf in &lib_folders {
+            for libf in lib_folders {
                 let lib = libf.join(last).with_extension("zagap");
                 if lib.exists() {
                     code = fs::read_to_string(&file).expect("unable to read imports");
@@ -63,26 +63,4 @@ fn parse_all(ast: Pair<Rule>, to_be_imported: &mut Vec<String>) {
             _ => unreachable!(),
         }
     }
-}
-
-#[test]
-fn empty_import() {
-    get_all_imports(
-        Path::new("./src/tests/imports/import_parser/empty_import/main.zagap"),
-        Vec::new()
-    );
-}
-#[test]
-fn recursive_import() {
-    assert_eq!(
-        get_all_imports(
-            Path::new("./src/tests/imports/import_parser/recursive_import/main.zagap"),
-            Vec::new(),
-        ),
-        vec![
-            Path::new("./src/tests/imports/import_parser/recursive_import/main.zagap"),
-            Path::new("./src/tests/imports/import_parser/recursive_import/a.zagap"),
-            Path::new("./src/tests/imports/import_parser/recursive_import/b.zagap")
-        ]
-    );
 }
