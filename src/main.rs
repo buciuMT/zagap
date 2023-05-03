@@ -5,11 +5,11 @@ mod parser;
 use backend::generate_c;
 use importer::get_all_imports;
 use parser::parse_programtable;
-use std::{env, process};
 use std::fs::{self, create_dir_all, File};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
+use std::{env, process};
 
 enum CompileMode {
     Genc,
@@ -42,12 +42,12 @@ fn main() -> std::io::Result<()> {
         "run" => CompileMode::Run,
         "addlib" => {
             sargs.next();
-            for i in sargs{
-                let path=Path::new(&i);
+            for i in sargs {
+                let path = Path::new(&i);
                 fs::copy(path, stdlib_dir.join(path.file_name().unwrap()))?;
             }
             process::exit(0);
-        },
+        }
         _ => panic!("Unknown mode"),
     };
     let args = arguments::parse(sargs).expect("Argument parse has failed");
@@ -107,7 +107,8 @@ fn main() -> std::io::Result<()> {
                 .arg(&cfile_path)
                 .args(extra)
                 .arg(format!("-o{out}"))
-                .spawn()?.wait()?;
+                .spawn()?
+                .wait()?;
         }
         CompileMode::Obj => {
             Command::new(cc.to_string())
@@ -115,17 +116,21 @@ fn main() -> std::io::Result<()> {
                 .args(extra)
                 .arg("-c")
                 .arg(format!("-o{out}"))
-                .spawn()?.wait()?;
+                .spawn()?
+                .wait()?;
         }
         CompileMode::Run => {
-            Command::new(cc.to_string())
+            if Command::new(cc.to_string())
                 .arg(&cfile_path)
                 .args(extra)
-                .arg("-c")
                 .arg(format!("-o{out}"))
-                .spawn()?.wait()?;
-            Command::new(out).spawn()?.wait()?;
-        },
+                .spawn()?
+                .wait()?
+                .success()
+            {
+                Command::new(format!("./{out}")).spawn()?.wait()?;
+            }
+        }
     }
 
     Ok(())
