@@ -148,7 +148,7 @@ impl CGen for InbuiltType {
                 Self::C32 => "int32_t",
                 Self::F32 => "float",
                 Self::F64 => "double",
-                Self::F128 => "(long double)",
+                Self::F128 => "long double",
             }
         )?;
         Ok(())

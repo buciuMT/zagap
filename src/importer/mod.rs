@@ -36,7 +36,7 @@ pub fn get_all_imports(file: &Path, lib_folders: &Vec<&Path>) -> Vec<PathBuf> {
             for libf in lib_folders.iter() {
                 let lib = libf.join(last).with_extension("zagap");
                 if lib.exists() && lib.is_file() {
-                    code = fs::read_to_string(&file).expect("unable to read imports");
+                    code = fs::read_to_string(&lib).expect("unable to read imports");
                     res.push(lib);
                     break 'cond true;
                 }

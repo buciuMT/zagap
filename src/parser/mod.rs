@@ -8,7 +8,6 @@ use crate::ast::StructDef;
 use crate::ast::UnaryOp;
 use crate::ast::ZagapType;
 use crate::ast::STR2TYPE;
-use core::f32;
 use lazy_static;
 use pest::pratt_parser::PrattParser;
 use std::collections::BTreeMap;
@@ -127,6 +126,9 @@ fn parse_function_def<'a>(ast: Pair<'a, Rule>, table: &ProgramTable) -> (&'a str
     }
     let mut namer = 0;
     let name = tok.as_str();
+    if name == "main" {
+        val.export_name = Some(name);
+    }
     for i in it {
         match i.as_rule() {
             Rule::r#type => val.ret = parse_type(i, table),

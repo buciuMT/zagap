@@ -1,4 +1,4 @@
-all = { import* ~ other }
+all = { SOI ~ import* ~ other ~ EOI }
 
 WHITESPACE = _{ (" " | "\r\n" | "\n" | "\t")+ }
 

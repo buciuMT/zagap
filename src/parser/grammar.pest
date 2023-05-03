@@ -6,7 +6,7 @@ COMMENT = _{
 }
 
 program = {
-    SOI ~ (import*) ~ (struct_def | function_def | function_import)* ~ EOI
+    SOI ~ (import | struct_def | function_def | function_import)* ~ EOI
 }
 
 import = { "import" ~ identifier }
@@ -71,7 +71,7 @@ ret = { "ret" ~ expr ~ ";" }
 cti = { "cti" ~ ";" }
 brk = { "brk" ~ ";" }
 
-declaration     = { identifier ~ ":" ~ (type | array_def) }
+declaration     = { identifier ~ ":" ~ (type | array_def) ~ !"," }
 declarationinit = { declaration ~ "=" ~ expr }
 assigment       = { expr ~ "=" ~ expr }
 

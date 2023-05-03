@@ -7,7 +7,7 @@ use importer::get_all_imports;
 use parser::parse_programtable;
 use std::{env, process};
 use std::fs::{self, create_dir_all, File};
-use std::io::BufWriter;
+use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{exit, Command};
 
@@ -98,6 +98,7 @@ fn main() -> std::io::Result<()> {
     };
 
     generate_c(&ast, &mut buffwriter, &header)?;
+    buffwriter.flush()?;
 
     match compile_mode {
         CompileMode::Genc => {}
