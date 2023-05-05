@@ -465,7 +465,11 @@ fn parse_struct<'a>(ast: Pair<'a, Rule>, table: &ProgramTable<'a>) -> (&'a str, 
         res.export_name = Some(val.as_str());
     }
     let name = val.as_str();
-    val = it.peek().unwrap();
+    let tmp = it.peek();
+    if tmp.is_none() {
+        return (name, res);
+    }
+    val = tmp.unwrap();
     match val.as_rule() {
         Rule::identifier => {
             res.export_name = Some(val.as_str());
