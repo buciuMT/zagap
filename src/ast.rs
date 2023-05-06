@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use std::collections::{BTreeMap, HashMap};
-#[derive(Clone, Copy, Debug)]
+
+#[derive(Clone, Copy, Debug,PartialEq, Eq, PartialOrd, Ord)]
 pub enum InbuiltType {
     Void,
     Bool,
@@ -20,6 +21,9 @@ pub enum InbuiltType {
     F32,
     F64,
     F128,
+    Int_lit,
+    Float_lit,
+    Unknown,
 }
 lazy_static! {
     pub static ref STR2TYPE: BTreeMap<&'static str, InbuiltType> = BTreeMap::from([
@@ -139,7 +143,13 @@ pub enum BinaryOp {
 }
 
 #[derive(Clone, Debug)]
-pub enum Expr<'a> {
+pub struct Expr<'a> {
+    t: ZagapType,
+    expr: ExprT<'a>,
+}
+
+#[derive(Clone, Debug)]
+pub enum ExprT<'a> {
     Etypechange(Box<Expr<'a>>, ZagapType),
     EUnary {
         op: UnaryOp,
