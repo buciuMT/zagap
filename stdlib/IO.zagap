@@ -4,7 +4,7 @@ import func fopen:filename:*c8,mode:*c8,->*file
 import func fclose:f:*file,->*file
 import func fgets:str:c8,size:i32,f:*file,->*c8
 import func fprintf:->i32 as ___fprintf___
-
+import func scanf:->void
 
 
 func prints:str:*c8,->i32{

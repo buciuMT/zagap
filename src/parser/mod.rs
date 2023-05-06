@@ -220,7 +220,33 @@ fn parse_statement<'a>(
                 None,
             )
         }
-        Rule::for_c => todo!(),
+        Rule::for_c => {
+            let mut it = val.into_inner();
+            let first = parse_statement(it.next().unwrap(), table, c_var, var_namer);
+            let mut var = c_var.clone();
+            if let Some(v) = &first.1 {
+                var.insert(v.0, (v.1, v.2.clone()));
+            }
+            let second = parse_expr(it.next().unwrap(), table, &var);
+            let third = parse_statement(it.next().unwrap(), table, &var, var_namer + 1);
+            let code = parse_code_block(it.next().unwrap(), table, var_namer + 2, &var);
+            (
+                Statement::Code(CodeBlock {
+                    statements: Vec::from([Statement::Cfor {
+                        init: Box::new(first.0),
+                        cond: second,
+                        post: Box::new(third.0),
+                        code: code,
+                    }]),
+                    vars: if let Some(v) = first.1 {
+                        BTreeMap::from([(v.0, (v.1, v.2))])
+                    } else {
+                        BTreeMap::new()
+                    },
+                }),
+                None,
+            )
+        }
         Rule::for_loop => (
             Statement::Cloop(parse_code_block(
                 val.into_inner().next().unwrap(),

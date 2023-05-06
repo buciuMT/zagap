@@ -5,7 +5,7 @@ use crate::ast::ProgramTable;
 use self::cbackend::CGen;
 mod cbackend;
 
-pub fn generate_c<T: io::Write>(
+pub fn generate_c<T: io::Write + io::Seek>(
     table: &ProgramTable,
     writer: &mut T,
     headers: &Option<Vec<String>>,

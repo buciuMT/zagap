@@ -99,11 +99,13 @@ fn main() -> std::io::Result<()> {
 
     generate_c(&ast, &mut buffwriter, &header)?;
     buffwriter.flush()?;
-
+    let cmd_log_path = dirs.cache_dir().join("log");
+    let cmd_log = File::create(cmd_log_path).expect("Unable to create log file");
     match compile_mode {
         CompileMode::Genc => {}
         CompileMode::Build => {
             Command::new(cc.to_string())
+                .stderr(cmd_log)
                 .arg(&cfile_path)
                 .args(extra)
                 .arg(format!("-o{out}"))
@@ -112,6 +114,7 @@ fn main() -> std::io::Result<()> {
         }
         CompileMode::Obj => {
             Command::new(cc.to_string())
+                .stderr(cmd_log)
                 .arg(&cfile_path)
                 .args(extra)
                 .arg("-c")
@@ -121,6 +124,7 @@ fn main() -> std::io::Result<()> {
         }
         CompileMode::Run => {
             if Command::new(cc.to_string())
+                .stderr(cmd_log)
                 .arg(&cfile_path)
                 .args(extra)
                 .arg(format!("-o{out}"))

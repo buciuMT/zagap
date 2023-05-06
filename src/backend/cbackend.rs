@@ -3,10 +3,18 @@ use ::std::io;
 use crate::ast::*;
 
 pub trait CGen {
-    fn gen_c_code<T: io::Write>(&self, table: &ProgramTable, writer: &mut T) -> io::Result<()>;
+    fn gen_c_code<T: io::Write + io::Seek>(
+        &self,
+        table: &ProgramTable,
+        writer: &mut T,
+    ) -> io::Result<()>;
 }
 impl CGen for ProgramTable<'_> {
-    fn gen_c_code<T: io::Write>(&self, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
+    fn gen_c_code<T: io::Write + io::Seek>(
+        &self,
+        table: &ProgramTable,
+        writer: &mut T,
+    ) -> io::Result<()> {
         for i in &self.str2struct {
             write!(writer, "typedef struct ")?;
             name_of_struct(*i.1, table, writer)?;
@@ -65,7 +73,7 @@ impl CGen for ProgramTable<'_> {
     }
 }
 
-fn generate_declaration<T: io::Write>(
+fn generate_declaration<T: io::Write + io::Seek>(
     t: &ZagapType,
     var_name: &str,
     table: &ProgramTable,
@@ -76,7 +84,7 @@ fn generate_declaration<T: io::Write>(
     Ok(())
 }
 
-fn generate_type_modifiers<T: io::Write>(
+fn generate_type_modifiers<T: io::Write + io::Seek>(
     t: &ZagapType,
     var_name: &str,
     table: &ProgramTable,
@@ -107,10 +115,13 @@ fn base_type(t: &ZagapType) -> &ZagapType {
 }
 
 impl CGen for ZagapType {
-    fn gen_c_code<T: io::Write>(&self, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
+    fn gen_c_code<T: io::Write + io::Seek>(
+        &self,
+        table: &ProgramTable,
+        writer: &mut T,
+    ) -> io::Result<()> {
         match self {
             Self::Ptr(ptr) => {
-                write!(writer, "")?;
                 (*ptr).gen_c_code(table, writer)?;
                 write!(writer, "*")?;
             }
@@ -126,7 +137,11 @@ impl CGen for ZagapType {
 }
 
 impl CGen for InbuiltType {
-    fn gen_c_code<T: io::Write>(&self, _table: &ProgramTable, writer: &mut T) -> io::Result<()> {
+    fn gen_c_code<T: io::Write + io::Seek>(
+        &self,
+        _table: &ProgramTable,
+        writer: &mut T,
+    ) -> io::Result<()> {
         write!(
             writer,
             "{name}",
@@ -155,7 +170,11 @@ impl CGen for InbuiltType {
     }
 }
 
-fn name_of_func<T: io::Write>(id: usize, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
+fn name_of_func<T: io::Write + io::Seek>(
+    id: usize,
+    table: &ProgramTable,
+    writer: &mut T,
+) -> io::Result<()> {
     if let Some(name) = table.funcs[id].export_name {
         write!(writer, "{name}")?;
     } else {
@@ -164,7 +183,11 @@ fn name_of_func<T: io::Write>(id: usize, table: &ProgramTable, writer: &mut T) -
     Ok(())
 }
 
-fn name_of_struct<T: io::Write>(id: usize, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
+fn name_of_struct<T: io::Write + io::Seek>(
+    id: usize,
+    table: &ProgramTable,
+    writer: &mut T,
+) -> io::Result<()> {
     if let Some(name) = table.structs[id].export_name {
         write!(writer, "{name}")?;
     } else {
@@ -174,7 +197,11 @@ fn name_of_struct<T: io::Write>(id: usize, table: &ProgramTable, writer: &mut T)
 }
 
 impl CGen for CodeBlock<'_> {
-    fn gen_c_code<T: io::Write>(&self, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
+    fn gen_c_code<T: io::Write + io::Seek>(
+        &self,
+        table: &ProgramTable,
+        writer: &mut T,
+    ) -> io::Result<()> {
         write!(writer, "{{")?;
         for i in self.vars.iter() {
             generate_declaration(
@@ -183,7 +210,9 @@ impl CGen for CodeBlock<'_> {
                 table,
                 writer,
             )?;
-            write!(writer, ";")?; //TODO: init 0;
+            write!(writer, "=")?;
+            generate_type_init(&i.1 .1, table, writer)?;
+            write!(writer, ";")?;
         }
         for i in self.statements.iter() {
             i.gen_c_code(table, writer)?;
@@ -193,8 +222,39 @@ impl CGen for CodeBlock<'_> {
     }
 }
 
+fn generate_type_init<T: io::Write + io::Seek>(
+    t: &ZagapType,
+    table: &ProgramTable,
+    writer: &mut T,
+) -> io::Result<()> {
+    match t {
+        ZagapType::Array { t, size: _ } => {
+            write!(writer, "{{")?;
+            generate_type_init(t, table, writer)?;
+            write!(writer, "}}")?;
+        }
+        ZagapType::Inbuilt(_) | ZagapType::Ptr(_) => write!(writer, "0")?,
+        ZagapType::Struct(id) => {
+            write!(writer, "{{")?;
+            let mut it = table.structs[*id].elements.iter().peekable();
+            while let Some(t) = it.next() {
+                generate_type_init(t.1, table, writer)?;
+                if it.peek().is_some() {
+                    write!(writer, ",")?;
+                }
+            }
+            write!(writer, "}}")?;
+        }
+    }
+    Ok(())
+}
+
 impl CGen for Statement<'_> {
-    fn gen_c_code<T: io::Write>(&self, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
+    fn gen_c_code<T: io::Write + io::Seek>(
+        &self,
+        table: &ProgramTable,
+        writer: &mut T,
+    ) -> io::Result<()> {
         match self {
             Self::None => {}
             Self::Assigment(lhs, rhs) => {
@@ -227,7 +287,16 @@ impl CGen for Statement<'_> {
                 cond,
                 post,
                 code,
-            } => todo!(),
+            } => {
+                write!(writer, "for(")?;
+                init.gen_c_code(table, writer)?;
+                cond.gen_c_code(table, writer)?;
+                write!(writer, ";")?;
+                post.gen_c_code(table, writer)?;
+                writer.seek(io::SeekFrom::Current(-1))?;
+                write!(writer, ")")?;
+                code.gen_c_code(table, writer)?;
+            }
             Self::Cwhile(expr, code) => {
                 write!(writer, "while(")?;
                 expr.gen_c_code(table, writer)?;
@@ -251,7 +320,11 @@ impl CGen for Statement<'_> {
 }
 
 impl CGen for Expr<'_> {
-    fn gen_c_code<T: io::Write>(&self, table: &ProgramTable, writer: &mut T) -> io::Result<()> {
+    fn gen_c_code<T: io::Write + io::Seek>(
+        &self,
+        table: &ProgramTable,
+        writer: &mut T,
+    ) -> io::Result<()> {
         match self {
             Self::Etypechange(expr, t) => {
                 write!(writer, "((")?;
