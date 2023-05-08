@@ -51,9 +51,9 @@ arg = { identifier ~ ":" ~ type ~ "," }
 
 struct_def = { exportk? ~ "struct" ~ identifier ~ ("as" ~ identifier)? ~ "{" ~ arg* ~ "}" }
 
-function_def = { exportk? ~ "func" ~ identifier ~ ":" ~ arg* ~ "->" ~ type ~ code_block }
+function_def = { exportk? ~ "func" ~ identifier ~ ":" ~ ":" ~ arg* ~ "->" ~ type ~ code_block }
 
-function_import = { "import" ~ "func" ~ identifier ~ ":" ~ arg* ~ "->" ~ type ~ ("as" ~ identifier)? }
+function_import = { "import" ~ "func" ~ identifier ~ ":" ~ ":" ~ arg* ~ "->" ~ type ~ ("as" ~ identifier)? }
 
 code_block = { "{" ~ statement* ~ "}" }
 
@@ -148,9 +148,9 @@ bxor    = { "^" }
 bshiftr = { ">>" }
 bshiftl = { "<<" }
 
-size_ofe = { "size_of" ~ ":" ~ type ~ "," }
+size_ofe = { "size_of" ~ ":" ~ ":" ~ type ~ "," }
 
-func_call_ = { identifier ~ ":" ~ (expr ~ ",")* }
+func_call_ = { identifier ~ ":" ~ ":" ~ (expr ~ ",")* }
 
 func_call = { size_ofe | func_call_ }
 

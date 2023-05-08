@@ -1,34 +1,58 @@
-import func printf:->i32 as ___printf___
-import func printf:->i32 as ___printf___
-import func fopen:filename:*c8,mode:*c8,->*file 
-import func fclose:f:*file,->*file
-import func fgets:str:c8,size:i32,f:*file,->*c8
-import func fprintf:->i32 as ___fprintf___
-import func scanf:->void
+import func printf::->i32 as ___printf___
+import func printf::->i32 as ___printf___
+import func fopen::filename:*c8,mode:*c8,->*file 
+import func fclose::f:*file,->*file
+import func fgets::str:c8,size:i32,f:*file,->*c8
+import func fprintf::->i32 as ___fprintf___
+import func scanf::->void as ___scanf___
 
 
-func prints:str:*c8,->i32{
-	ret ___printf___ :"%s",str,;
+func prints::str:*c8,->i32{
+	ret ___printf___ ::"%s",str,;
 }
 
-func printi:n:isize,->i32{
-	ret ___printf___ :"%d",n,;
+func printi::n:isize,->i32{
+	ret ___printf___ ::"%d",n,;
 }
 
-func printu:n:usize,->i32{
-	ret ___printf___ :"%u",n,;
+func printu::n:usize,->i32{
+	ret ___printf___ ::"%u",n,;
 }
 
-func writes:str:*c8,->i32{
-    ret ___fprintf___:"%s",str,;
+func writes::str:*c8,->i32{
+    ret ___fprintf___ ::"%s",str,;
 }
 
-func writei:n:isize,->i32{
-	ret ___printf___ :"%d",n,;
+func writei::n:isize,->i32{
+	ret ___printf___ ::"%d",n,;
 }
 
-func writeu:n:usize,->i32{
-	ret ___printf___ :"%u",n,;
+func writeu::n:usize,->i32{
+	ret ___printf___ ::"%u",n,;
+}
+
+func stdio_getc::->c8{
+	c:c8;
+	___scanf___::"%c",&c,;
+	ret c;
+}
+
+func stdio_geti::->isize{
+	i:i64;
+	___scanf___::"%ij",&i,;
+	ret i;
+}
+
+func stdio_getu::->usize{
+	u:usize;
+	___scanf___::"%uj",&u,;
+	ret u;
+}
+
+func stdio_getf::->f128{
+	f:f128;
+	___scanf___::"%fL",&f,;
+	ret f;
 }
 
 struct file{}

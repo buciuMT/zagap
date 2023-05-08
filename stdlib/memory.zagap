@@ -1,0 +1,3 @@
+
+import func malloc::->*void
+import func free::->void
