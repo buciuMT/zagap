@@ -59,5 +59,10 @@ func stdio_getf::->f128{
 	ret f;
 }
 
-struct file{}
+func strcpy::to:*c8,from:*c8,->void{
+	for i:i32;from[i];i=i+1;{
+		to[i]=from[i];
+	}
+}
 
+struct file{}

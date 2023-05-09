@@ -1,0 +1,41 @@
+import IO
+import memory
+
+struct scoala{
+    nume:[c8;100],
+    nr_clase:usize
+    clase:[clasa;100],
+    nr_profesori:usize
+    profesori:[profesor;100],
+}
+
+struct clasa{
+    diriginte:*profesor,
+    elevi:[elev;30],
+}
+
+struct profesor{
+    nume:[c8;100],
+}
+
+struct elev{
+    exista:bool,
+    nume:[c8;100],
+    apartine:*clasa,
+}
+
+func print_scoala:s:*scoala,->void{
+    prints::"nume scoala: ",;
+    prints::(*s).nume,;
+    prints::"\nclase:\n",;
+    for i:i32;i<(*s).nr_clase;i=i+1;{
+        print_clasa::(*s).clase[i],;
+    }
+    
+}
+
+func main::->i32{
+    spiru:scoala;
+    printi::size_of::scoala,,;
+    ret 0;
+}

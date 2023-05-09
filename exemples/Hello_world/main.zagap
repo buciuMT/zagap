@@ -1,0 +1,6 @@
+import IO
+
+func main::->i32{
+    prints::"Hello World!",;
+    ret 0;
+}
