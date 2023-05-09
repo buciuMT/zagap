@@ -256,7 +256,9 @@ impl CGen for Statement<'_> {
         writer: &mut T,
     ) -> io::Result<()> {
         match self {
-            Self::None => {}
+            Self::None => {
+                write!(writer, ";")?;
+            }
             Self::Assigment(lhs, rhs) => {
                 lhs.gen_c_code(table, writer)?;
                 write!(writer, "=")?;
