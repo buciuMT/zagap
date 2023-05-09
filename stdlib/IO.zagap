@@ -19,6 +19,10 @@ func printu::n:usize,->i32{
 	ret ___printf___ ::"%u",n,;
 }
 
+func printu::n:f128,->i32{
+	ret ___printf___ ::"%f",n,;
+}
+
 func writes::str:*c8,->i32{
     ret ___fprintf___ ::"%s",str,;
 }
