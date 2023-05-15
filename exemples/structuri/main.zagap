@@ -51,3 +51,4 @@ func main::->i32{
     print_clasa::&g12,;
     ret 0;
 }
+
